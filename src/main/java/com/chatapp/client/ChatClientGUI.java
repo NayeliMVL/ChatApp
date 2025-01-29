@@ -11,13 +11,16 @@ import java.io.PrintWriter;
 import java.net.Socket;
 
 public class ChatClientGUI extends JFrame {
-    private static final String SERVER_IP = "192.168.1.100"; // Cambia a la IP del servidor
+    private static final String SERVER_IP = "172.25.3.65";
     private static final int SERVER_PORT = 12345;
 
     private JTextArea chatArea;
     private JTextField messageField;
     private JButton sendButton;
     private PrintWriter out;
+    private BufferedReader in;
+    private Socket socket;
+    private String username;
 
     public ChatClientGUI() {
         setTitle("Chat Cliente");
@@ -25,15 +28,23 @@ public class ChatClientGUI extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
 
+        // Solicitar el nombre de usuario
+        username = JOptionPane.showInputDialog(this, "Ingresa tu nombre de usuario: ");
+        if (username == null || username.trim().isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Nombre de usuario no valido. Agregando nombre por defecto.");
+            username = "Pato anonimo";
+        }
+
+        // Área de chat
         chatArea = new JTextArea();
         chatArea.setEditable(false);
         JScrollPane scrollPane = new JScrollPane(chatArea);
         add(scrollPane, BorderLayout.CENTER);
 
+        // Panel de entrada para mensajes
         JPanel inputPanel = new JPanel(new BorderLayout());
         messageField = new JTextField();
         sendButton = new JButton("Enviar");
-
         inputPanel.add(messageField, BorderLayout.CENTER);
         inputPanel.add(sendButton, BorderLayout.EAST);
         add(inputPanel, BorderLayout.SOUTH);
@@ -57,18 +68,22 @@ public class ChatClientGUI extends JFrame {
 
     private void connectToServer() {
         try {
-            Socket socket = new Socket(SERVER_IP, SERVER_PORT);
-            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            socket = new Socket(SERVER_IP, SERVER_PORT);
+            in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             out = new PrintWriter(socket.getOutputStream(), true);
 
+            // Hilo para recibir mensajes del servidor
             Thread receiveThread = new Thread(() -> {
                 try {
                     String message;
                     while ((message = in.readLine()) != null) {
-                        chatArea.append("Servidor: " + message + "\n");
+                        // Mostrar el nombre del usuario que envía el mensaje
+                        chatArea.append(message + "\n");
                     }
                 } catch (IOException e) {
                     e.printStackTrace();
+                    JOptionPane.showMessageDialog(this, "Se ha perdido la conexión con el servidor. Intentando reconectar...", "Error de Conexión", JOptionPane.WARNING_MESSAGE);
+                    reconnectToServer();
                 }
             });
             receiveThread.start();
@@ -78,11 +93,18 @@ public class ChatClientGUI extends JFrame {
         }
     }
 
+    private void reconnectToServer() {
+        // Intentar reconectar cada 5 segundos
+        new Timer(5000, e -> connectToServer()).start();
+    }
+
     private void sendMessage() {
         String message = messageField.getText();
         if (!message.isEmpty()) {
+            // Mostrar el mensaje con el nombre de usuario en el área de chat
             chatArea.append("Tú: " + message + "\n");
-            out.println(message);
+            // Enviar el mensaje con el nombre de usuario al servidor
+            out.println(username + ": " + message);
             messageField.setText("");
         }
     }
@@ -91,4 +113,3 @@ public class ChatClientGUI extends JFrame {
         SwingUtilities.invokeLater(() -> new ChatClientGUI().setVisible(true));
     }
 }
-

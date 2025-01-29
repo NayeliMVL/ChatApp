@@ -23,7 +23,7 @@ public class ClientHandler implements Runnable {
 
             String message;
             while ((message = in.readLine()) != null) {
-                System.out.println("Mensaje recibido: " + message);
+                System.out.println("Mensaje recibido de " + message);
                 for (ClientHandler client : clients) {
                     if (client != this) {
                         client.sendMessage(message);
