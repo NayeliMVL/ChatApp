@@ -1,10 +1,17 @@
 package com.chatapp.client;
 
+import javax.sound.sampled.AudioFormat;
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.Clip;
+import javax.sound.sampled.LineUnavailableException;
+import javax.sound.sampled.UnsupportedAudioFileException;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
@@ -52,14 +59,14 @@ public class ChatClientGUI extends JFrame {
         enviarMensaje.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                sendMessage();
+                enviarMensaje();
             }
         });
 
         entradaNuevoMensaje.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                sendMessage();
+                enviarMensaje();
             }
         });
 
@@ -77,6 +84,7 @@ public class ChatClientGUI extends JFrame {
                     String mensaje;
                     while ((mensaje = in.readLine()) != null) {
                         areaMensajes.append(mensaje + "\n");
+                        reproducirSonido("src/main/java/com/chatapp/utils/sonidoNotificacion.wav");
                     }
                 } catch (IOException e) {
                     e.printStackTrace();
@@ -96,16 +104,45 @@ public class ChatClientGUI extends JFrame {
         new Timer(5000, e -> conectarServidor()).start();
     }
 
-    private void sendMessage() {
-        String message = entradaNuevoMensaje.getText();
-        if (!message.isEmpty()) {
-            areaMensajes.append("Tú: " + message + "\n");
-            out.println(nombreUsuario + ": " + message);
+    private void enviarMensaje() {
+        String mensaje = entradaNuevoMensaje.getText();
+        if (!mensaje.isEmpty()) {
+            areaMensajes.append("Tú: " + mensaje + "\n");
+            out.println(nombreUsuario + ": " + mensaje);
             entradaNuevoMensaje.setText("");
         }
     }
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> new ChatClientGUI().setVisible(true));
+    }
+
+    public static void reproducirSonido(String ruta) {
+        try {
+            File archivoSonido = new File(ruta);
+            AudioInputStream audioStream = AudioSystem.getAudioInputStream(archivoSonido);
+
+            // Obtener formato original
+            AudioFormat formatoOriginal = audioStream.getFormat();
+            AudioFormat formatoCompatible = new AudioFormat(
+                AudioFormat.Encoding.PCM_SIGNED, // Convertir a PCM_SIGNED
+                formatoOriginal.getSampleRate(),
+                16, // Convertir a 16 bits
+                formatoOriginal.getChannels(),
+                formatoOriginal.getChannels() * 2, 
+                formatoOriginal.getSampleRate(),
+                false
+            );
+
+            // Convertir el audio
+            AudioInputStream audioConvertido = AudioSystem.getAudioInputStream(formatoCompatible, audioStream);
+
+            Clip clip = AudioSystem.getClip();
+            clip.open(audioConvertido);
+            clip.start();
+
+        } catch (UnsupportedAudioFileException | IOException | LineUnavailableException e) {
+            e.printStackTrace();
+        }
     }
 }
