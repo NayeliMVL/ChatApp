@@ -9,9 +9,11 @@ import javax.sound.sampled.UnsupportedAudioFileException;
 import javax.swing.*;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.SimpleAttributeSet;
-import javax.swing.text.Style;
 import javax.swing.text.StyleConstants;
 import javax.swing.text.StyledDocument;
+
+import com.vdurmont.emoji.Emoji;
+import com.vdurmont.emoji.EmojiManager;
 
 import java.awt.*;
 import java.awt.event.ActionEvent;
@@ -22,6 +24,8 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 public class ChatClientGUI extends JFrame {
     // Cambiar la direccion IP por la de la computadora que funcionara como servidor
@@ -31,6 +35,7 @@ public class ChatClientGUI extends JFrame {
     private JTextPane areaMensajes;
     private JTextField entradaNuevoMensaje;
     private JButton enviarMensaje;
+    private JButton botonEmoji;
 
     private PrintWriter out;
     private BufferedReader in;
@@ -50,7 +55,7 @@ public class ChatClientGUI extends JFrame {
             JOptionPane.showMessageDialog(this, "Nombre de usuario no válido. Agregando nombre por defecto.");
             nombreUsuario = "Pato anónimo";
         }
-    
+
         areaMensajes = new JTextPane();
         areaMensajes.setEditable(false);
         JScrollPane scrollPane = new JScrollPane(areaMensajes);
@@ -59,36 +64,73 @@ public class ChatClientGUI extends JFrame {
         JPanel inputPanel = new JPanel(new BorderLayout());
         entradaNuevoMensaje = new JTextField();
         enviarMensaje = new JButton("Enviar");
+        botonEmoji = new JButton("😊");
 
         inputPanel.add(entradaNuevoMensaje, BorderLayout.CENTER);
         inputPanel.add(enviarMensaje, BorderLayout.EAST);
+        inputPanel.add(botonEmoji, BorderLayout.WEST);
         add(inputPanel, BorderLayout.SOUTH);
 
+        JPopupMenu emojiPopup = new JPopupMenu();
+        for (Emoji emoji : EmojiManager.getAll()) {
+            JMenuItem emojiItem = new JMenuItem(emoji.getUnicode());
+            emojiItem.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    entradaNuevoMensaje.setText(entradaNuevoMensaje.getText() + emoji.getUnicode());
+                }
+            });
+            emojiPopup.add(emojiItem);
+        }
+
+        botonEmoji.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                emojiPopup.show(botonEmoji, 0, botonEmoji.getHeight());
+            }
+        });
 
         enviarMensaje.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                enviarMensaje("Hola",false);
+                enviarMensaje();
             }
         });
 
         entradaNuevoMensaje.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                enviarMensaje("Hola",false);
+                enviarMensaje();
             }
         });
 
         conectarServidor();
+
+        addWindowListener(new java.awt.event.WindowAdapter() {
+            public void windowClosing(java.awt.event.WindowEvent windowEvent) {
+                // Enviar el mensaje indicando que el usuario ha salido
+                out.println("*** ¡" + nombreUsuario + " salió del chat! ***");
+
+                // Cerrar el socket
+                try {
+                    socket.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+
+                // Terminar la aplicación
+                System.exit(0);
+            }
+        });
     }
 
     private void conectarServidor() {
         try {
             socket = new Socket(SERVIDOR_IP, SERVIDOR_PUERTO);
-            in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            out = new PrintWriter(socket.getOutputStream(), true);
+            in = new BufferedReader(new InputStreamReader(socket.getInputStream(), "UTF-8"));
+            out = new PrintWriter(socket.getOutputStream(), true, java.nio.charset.StandardCharsets.UTF_8);
 
-            out.println("****" + nombreUsuario + " acaba de ingresar ****");
+            out.println("**** ¡" + nombreUsuario + " entró al chat! ****");
 
             Thread receiveThread = new Thread(() -> {
                 try {
@@ -97,68 +139,98 @@ public class ChatClientGUI extends JFrame {
                         if (mensaje.startsWith("****") && mensaje.endsWith("****")) {
                             // Si el mensaje tiene los asteriscos, se considera un mensaje de ingreso
                             agregarMensaje(mensaje, "Ingresa");
+                        } else if (mensaje.startsWith("***") && mensaje.endsWith("***")) {
+                            agregarMensaje(mensaje, "Salida");
+                        } else if (esFormatoValido(mensaje)) {
+                            agregarMensaje(mensaje, "Fecha");
                         } else {
                             // Si no tiene los asteriscos, es un mensaje común
                             agregarMensaje(mensaje, "NoPropio");
-                        }                        reproducirSonido("src/main/java/com/chatapp/utils/sonidoNotificacion.wav");
+                        }
+                        reproducirSonido("src/main/java/com/chatapp/utils/sonidoNotificacion.wav");
                     }
                 } catch (IOException e) {
                     e.printStackTrace();
-                    JOptionPane.showMessageDialog(this, "Se ha perdido la conexión con el servidor. Intentando reconectar...", 
-                                                  "Error de Conexión", JOptionPane.WARNING_MESSAGE);
+                    JOptionPane.showMessageDialog(this,
+                            "Se ha perdido la conexión con el servidor. Intentando reconectar...",
+                            "Error de Conexión", JOptionPane.WARNING_MESSAGE);
                     reconnectToServer();
                 }
             });
             receiveThread.start();
 
         } catch (IOException e) {
-            JOptionPane.showMessageDialog(this, "Error al conectar con el servidor", "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Error al conectar con el servidor", "Error",
+                    JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    public boolean esFormatoValido(String mensaje) {
+        // Expresión regular para el formato 'yyyy-MM-dd HH:mm:ss'
+        String regex = "^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}$";
+        return mensaje.matches(regex);
     }
 
     private void reconnectToServer() {
         new Timer(5000, e -> conectarServidor()).start();
     }
 
-    public void enviarMensaje(String mensajeIngresa, Boolean ingresa) {
-
-        if(!ingresa){
-            String mensaje = entradaNuevoMensaje.getText().trim();
-            if (!mensaje.isEmpty()) {
-                agregarMensaje(mensaje, "Propio"); // Mensaje alineado a la derecha
-                out.println(nombreUsuario + ": " + mensaje);
-                entradaNuevoMensaje.setText("");
-            }
-        } else{
-            out.println(mensajeIngresa);
+    public void enviarMensaje() {
+        String mensaje = entradaNuevoMensaje.getText().trim();
+        if (!mensaje.isEmpty()) {
+            agregarMensaje(mensaje, "Propio"); // Mensaje alineado a la derecha
+            out.println(" " + nombreUsuario + ": " + mensaje + " ");
+            entradaNuevoMensaje.setText("");
+            enviarHoraFecha();
         }
-        
     }
 
-    public void agregarMensaje(String mensaje, String quien) {
+    public void enviarHoraFecha() {
+        String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+        out.println(timestamp);
+    }
+
+    public void agregarMensaje(String mensaje, String tipo) {
         StyledDocument doc = areaMensajes.getStyledDocument();
         SimpleAttributeSet estilo = new SimpleAttributeSet();
-    
-        // Alinear el mensaje a la derecha si es propio
-        if (quien == "Propio") {
-            StyleConstants.setAlignment(estilo, StyleConstants.ALIGN_RIGHT);
-            StyleConstants.setForeground(estilo, Color.BLUE); // Mensajes propios en azul
-        } else if(quien == "NoPropio") {
-            StyleConstants.setAlignment(estilo, StyleConstants.ALIGN_LEFT);
-            StyleConstants.setForeground(estilo, Color.BLACK); // Mensajes recibidos en negro
-        } else if(quien == "Ingresa"){
-            StyleConstants.setAlignment(estilo, StyleConstants.ALIGN_CENTER);
-            StyleConstants.setForeground(estilo, Color.GREEN); // Mensajes recibidos en negro
+
+        StyleConstants.setFontSize(estilo, 13);
+
+        switch (tipo) {
+            case "Propio":
+                StyleConstants.setForeground(estilo, Color.WHITE);
+                StyleConstants.setBackground(estilo, Color.GREEN.darker());
+                StyleConstants.setAlignment(estilo, StyleConstants.ALIGN_RIGHT);
+                break;
+            case "NoPropio":
+                StyleConstants.setAlignment(estilo, StyleConstants.ALIGN_LEFT);
+                StyleConstants.setForeground(estilo, Color.WHITE);
+                StyleConstants.setBackground(estilo, Color.CYAN.darker());
+                break;
+            case "Ingresa":
+                StyleConstants.setAlignment(estilo, StyleConstants.ALIGN_CENTER);
+                StyleConstants.setForeground(estilo, Color.GREEN.darker());
+                break;
+            case "Salida":
+                StyleConstants.setAlignment(estilo, StyleConstants.ALIGN_CENTER);
+                StyleConstants.setForeground(estilo, Color.RED);
+                break;
+            case "Fecha":
+                StyleConstants.setFontSize(estilo, 10);
+                StyleConstants.setForeground(estilo, Color.GRAY);
+                break;
+
+            default:
+                break;
         }
-    
+
         try {
             doc.insertString(doc.getLength(), mensaje + "\n", estilo); // Insertar el mensaje
-            doc.setParagraphAttributes(doc.getLength() - mensaje.length() - 1, mensaje.length() + 1, estilo, false); // Asegurarse de que el estilo se aplique correctamente
+            doc.setParagraphAttributes(doc.getLength() - mensaje.length() - 1, mensaje.length() + 1, estilo, false);
         } catch (BadLocationException e) {
             e.printStackTrace();
         }
     }
-    
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> new ChatClientGUI().setVisible(true));

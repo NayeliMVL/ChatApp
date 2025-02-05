@@ -4,8 +4,6 @@ import java.io.*;
 import java.net.*;
 import java.util.concurrent.*;
 
-import com.chatapp.client.ChatClientGUI;
-
 // Clase principal del servidor de chat
 public class ChatServer {
     private static final int PORT = 12345;
