@@ -113,7 +113,7 @@ public class ChatClientGUI extends JFrame {
     private void enviarMensaje() {
         String mensaje = entradaNuevoMensaje.getText().trim();
         if (!mensaje.isEmpty()) {
-            agregarMensaje("Tú: " + mensaje, true); // Mensaje alineado a la derecha
+            agregarMensaje(mensaje + ":Yo", true); // Mensaje alineado a la derecha
             out.println(nombreUsuario + ": " + mensaje);
             entradaNuevoMensaje.setText("");
         }
