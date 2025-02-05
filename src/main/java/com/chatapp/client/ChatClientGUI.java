@@ -7,6 +7,12 @@ import javax.sound.sampled.Clip;
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.UnsupportedAudioFileException;
 import javax.swing.*;
+import javax.swing.text.BadLocationException;
+import javax.swing.text.SimpleAttributeSet;
+import javax.swing.text.Style;
+import javax.swing.text.StyleConstants;
+import javax.swing.text.StyledDocument;
+
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -18,11 +24,11 @@ import java.io.PrintWriter;
 import java.net.Socket;
 
 public class ChatClientGUI extends JFrame {
-    //Cambiar la direccion IP por la de la computadora que funcionara como servidor
+    // Cambiar la direccion IP por la de la computadora que funcionara como servidor
     private static final String SERVIDOR_IP = "172.25.3.68";
     private static final int SERVIDOR_PUERTO = 12345;
 
-    private JTextArea areaMensajes;
+    private JTextPane areaMensajes;
     private JTextField entradaNuevoMensaje;
     private JButton enviarMensaje;
 
@@ -43,7 +49,7 @@ public class ChatClientGUI extends JFrame {
             nombreUsuario = "Pato anónimo";
         }
 
-        areaMensajes = new JTextArea();
+        areaMensajes = new JTextPane();
         areaMensajes.setEditable(false);
         JScrollPane scrollPane = new JScrollPane(areaMensajes);
         add(scrollPane, BorderLayout.CENTER);
@@ -83,7 +89,7 @@ public class ChatClientGUI extends JFrame {
                 try {
                     String mensaje;
                     while ((mensaje = in.readLine()) != null) {
-                        areaMensajes.append(mensaje + "\n");
+                        agregarMensaje(mensaje, false);
                         reproducirSonido("src/main/java/com/chatapp/utils/sonidoNotificacion.wav");
                     }
                 } catch (IOException e) {
@@ -105,13 +111,35 @@ public class ChatClientGUI extends JFrame {
     }
 
     private void enviarMensaje() {
-        String mensaje = entradaNuevoMensaje.getText();
+        String mensaje = entradaNuevoMensaje.getText().trim();
         if (!mensaje.isEmpty()) {
-            areaMensajes.append("Tú: " + mensaje + "\n");
+            agregarMensaje("Tú: " + mensaje, true); // Mensaje alineado a la derecha
             out.println(nombreUsuario + ": " + mensaje);
             entradaNuevoMensaje.setText("");
         }
     }
+
+    private void agregarMensaje(String mensaje, boolean esPropio) {
+        StyledDocument doc = areaMensajes.getStyledDocument();
+        SimpleAttributeSet estilo = new SimpleAttributeSet();
+    
+        // Alinear el mensaje a la derecha si es propio
+        if (esPropio) {
+            StyleConstants.setAlignment(estilo, StyleConstants.ALIGN_RIGHT);
+            StyleConstants.setForeground(estilo, Color.BLUE); // Mensajes propios en azul
+        } else {
+            StyleConstants.setAlignment(estilo, StyleConstants.ALIGN_LEFT);
+            StyleConstants.setForeground(estilo, Color.BLACK); // Mensajes recibidos en negro
+        }
+    
+        try {
+            doc.insertString(doc.getLength(), mensaje + "\n", estilo); // Insertar el mensaje
+            doc.setParagraphAttributes(doc.getLength() - mensaje.length() - 1, mensaje.length() + 1, estilo, false); // Asegurarse de que el estilo se aplique correctamente
+        } catch (BadLocationException e) {
+            e.printStackTrace();
+        }
+    }
+    
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> new ChatClientGUI().setVisible(true));
@@ -125,14 +153,13 @@ public class ChatClientGUI extends JFrame {
             // Obtener formato original
             AudioFormat formatoOriginal = audioStream.getFormat();
             AudioFormat formatoCompatible = new AudioFormat(
-                AudioFormat.Encoding.PCM_SIGNED, // Convertir a PCM_SIGNED
-                formatoOriginal.getSampleRate(),
-                16, // Convertir a 16 bits
-                formatoOriginal.getChannels(),
-                formatoOriginal.getChannels() * 2, 
-                formatoOriginal.getSampleRate(),
-                false
-            );
+                    AudioFormat.Encoding.PCM_SIGNED, // Convertir a PCM_SIGNED
+                    formatoOriginal.getSampleRate(),
+                    16, // Convertir a 16 bits
+                    formatoOriginal.getChannels(),
+                    formatoOriginal.getChannels() * 2,
+                    formatoOriginal.getSampleRate(),
+                    false);
 
             // Convertir el audio
             AudioInputStream audioConvertido = AudioSystem.getAudioInputStream(formatoCompatible, audioStream);
