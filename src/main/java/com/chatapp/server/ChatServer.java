@@ -4,10 +4,12 @@ import java.io.*;
 import java.net.*;
 import java.util.concurrent.*;
 
+import com.chatapp.client.ChatClientGUI;
+
 // Clase principal del servidor de chat
 public class ChatServer {
     private static final int PORT = 12345;
-    private static final CopyOnWriteArrayList<ClientHandler> clients = new CopyOnWriteArrayList<>(); 
+    private static final CopyOnWriteArrayList<ClientHandler> clientes = new CopyOnWriteArrayList<>(); 
 
     public static void main(String[] args) {
         try (ServerSocket serverSocket = new ServerSocket(PORT)) { 
@@ -15,8 +17,8 @@ public class ChatServer {
             
             while (true) {
                 Socket socket = serverSocket.accept();
-                ClientHandler clientHandler = new ClientHandler(socket, clients);
-                clients.add(clientHandler); 
+                ClientHandler clientHandler = new ClientHandler(socket, clientes);
+                clientes.add(clientHandler); 
                 new Thread(clientHandler).start();
             }
         } catch (IOException e) {

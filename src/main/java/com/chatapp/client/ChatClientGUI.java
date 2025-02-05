@@ -37,6 +37,8 @@ public class ChatClientGUI extends JFrame {
     private Socket socket;
     private String nombreUsuario;
 
+    public Boolean bandera = true;
+
     public ChatClientGUI() {
         setTitle("Chat Cliente");
         setSize(400, 400);
@@ -48,7 +50,7 @@ public class ChatClientGUI extends JFrame {
             JOptionPane.showMessageDialog(this, "Nombre de usuario no válido. Agregando nombre por defecto.");
             nombreUsuario = "Pato anónimo";
         }
-
+    
         areaMensajes = new JTextPane();
         areaMensajes.setEditable(false);
         JScrollPane scrollPane = new JScrollPane(areaMensajes);
@@ -62,17 +64,18 @@ public class ChatClientGUI extends JFrame {
         inputPanel.add(enviarMensaje, BorderLayout.EAST);
         add(inputPanel, BorderLayout.SOUTH);
 
+
         enviarMensaje.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                enviarMensaje();
+                enviarMensaje("Hola",false);
             }
         });
 
         entradaNuevoMensaje.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                enviarMensaje();
+                enviarMensaje("Hola",false);
             }
         });
 
@@ -85,12 +88,19 @@ public class ChatClientGUI extends JFrame {
             in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             out = new PrintWriter(socket.getOutputStream(), true);
 
+            out.println("****" + nombreUsuario + " acaba de ingresar ****");
+
             Thread receiveThread = new Thread(() -> {
                 try {
                     String mensaje;
                     while ((mensaje = in.readLine()) != null) {
-                        agregarMensaje(mensaje, false);
-                        reproducirSonido("src/main/java/com/chatapp/utils/sonidoNotificacion.wav");
+                        if (mensaje.startsWith("****") && mensaje.endsWith("****")) {
+                            // Si el mensaje tiene los asteriscos, se considera un mensaje de ingreso
+                            agregarMensaje(mensaje, "Ingresa");
+                        } else {
+                            // Si no tiene los asteriscos, es un mensaje común
+                            agregarMensaje(mensaje, "NoPropio");
+                        }                        reproducirSonido("src/main/java/com/chatapp/utils/sonidoNotificacion.wav");
                     }
                 } catch (IOException e) {
                     e.printStackTrace();
@@ -110,26 +120,35 @@ public class ChatClientGUI extends JFrame {
         new Timer(5000, e -> conectarServidor()).start();
     }
 
-    private void enviarMensaje() {
-        String mensaje = entradaNuevoMensaje.getText().trim();
-        if (!mensaje.isEmpty()) {
-            agregarMensaje(mensaje + ":Yo", true); // Mensaje alineado a la derecha
-            out.println(nombreUsuario + ": " + mensaje);
-            entradaNuevoMensaje.setText("");
+    public void enviarMensaje(String mensajeIngresa, Boolean ingresa) {
+
+        if(!ingresa){
+            String mensaje = entradaNuevoMensaje.getText().trim();
+            if (!mensaje.isEmpty()) {
+                agregarMensaje(mensaje, "Propio"); // Mensaje alineado a la derecha
+                out.println(nombreUsuario + ": " + mensaje);
+                entradaNuevoMensaje.setText("");
+            }
+        } else{
+            out.println(mensajeIngresa);
         }
+        
     }
 
-    private void agregarMensaje(String mensaje, boolean esPropio) {
+    public void agregarMensaje(String mensaje, String quien) {
         StyledDocument doc = areaMensajes.getStyledDocument();
         SimpleAttributeSet estilo = new SimpleAttributeSet();
     
         // Alinear el mensaje a la derecha si es propio
-        if (esPropio) {
+        if (quien == "Propio") {
             StyleConstants.setAlignment(estilo, StyleConstants.ALIGN_RIGHT);
             StyleConstants.setForeground(estilo, Color.BLUE); // Mensajes propios en azul
-        } else {
+        } else if(quien == "NoPropio") {
             StyleConstants.setAlignment(estilo, StyleConstants.ALIGN_LEFT);
             StyleConstants.setForeground(estilo, Color.BLACK); // Mensajes recibidos en negro
+        } else if(quien == "Ingresa"){
+            StyleConstants.setAlignment(estilo, StyleConstants.ALIGN_CENTER);
+            StyleConstants.setForeground(estilo, Color.GREEN); // Mensajes recibidos en negro
         }
     
         try {

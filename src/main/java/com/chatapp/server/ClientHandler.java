@@ -4,6 +4,8 @@ import java.io.*;
 import java.net.*;
 import java.util.List;
 
+import com.chatapp.client.ChatClientGUI;
+
 // Clase que maneja la comunicación con un cliente en un hilo separado
 public class ClientHandler implements Runnable {
     private Socket socket; // Socket para la conexión con el cliente
