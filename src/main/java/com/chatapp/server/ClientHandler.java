@@ -4,40 +4,49 @@ import java.io.*;
 import java.net.*;
 import java.util.List;
 
+// Clase que maneja la comunicación con un cliente en un hilo separado
 public class ClientHandler implements Runnable {
-    private Socket socket;
-    private PrintWriter out;
-    private BufferedReader in;
-    private List<ClientHandler> clients;
+    private Socket socket; // Socket para la conexión con el cliente
+    private PrintWriter out; // Objeto para enviar mensajes al cliente
+    private BufferedReader in; // Objeto para recibir mensajes del cliente
+    private List<ClientHandler> clientes; // Lista de clientes conectados al servidor
 
-    public ClientHandler(Socket socket, List<ClientHandler> clients) {
+    // Constructor que recibe el socket del cliente y la lista de clientes conectados
+    public ClientHandler(Socket socket, List<ClientHandler> clientes) {
         this.socket = socket;
-        this.clients = clients;
+        this.clientes = clientes;
     }
 
     @Override
     public void run() {
         try {
+            // Inicializa los flujos de entrada y salida
             in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             out = new PrintWriter(socket.getOutputStream(), true);
 
-            String message;
-            while ((message = in.readLine()) != null) {
-                System.out.println("Mensaje recibido de " + message);
-                for (ClientHandler client : clients) {
-                    if (client != this) {
-                        client.sendMessage(message);
+            String mensaje;
+            // Bucle que recibe mensajes del cliente
+            while ((mensaje = in.readLine()) != null) {
+                System.out.println("Mensaje recibido de " + mensaje);
+
+                // Envía el mensaje a todos los clientes conectados excepto al remitente
+                for (ClientHandler cliente : clientes) {
+                    if (cliente != this) {
+                        cliente.enviarMensaje(mensaje);
                     }
                 }
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            e.printStackTrace(); // Manejo de errores de entrada/salida
         } finally {
-            try { socket.close(); } catch (IOException e) { e.printStackTrace(); }
+            System.out.println(this + " desconectado.");
+            enviarMensaje(" desconectado.");
+            try { socket.close(); } catch (IOException e) { e.printStackTrace(); } // Cierra el socket cuando el cliente se desconecta
         }
     }
 
-    public void sendMessage(String message) {
+    // Método para enviar mensajes a un cliente
+    public void enviarMensaje(String message) {
         out.println(message);
     }
 }
