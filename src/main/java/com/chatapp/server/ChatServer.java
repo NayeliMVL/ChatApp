@@ -14,7 +14,7 @@ public class ChatServer {
             System.out.println("Servidor iniciado en el puerto " + PORT);
             
             while (true) {
-                Socket socket = serverSocket.accept();
+                Socket socket = serverSocket.accept(); // Acepta a los clientes
                 ClientHandler clientHandler = new ClientHandler(socket, clientes);
                 clientes.add(clientHandler); 
                 new Thread(clientHandler).start();

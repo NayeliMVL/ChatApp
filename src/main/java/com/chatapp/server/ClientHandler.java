@@ -30,12 +30,16 @@ public class ClientHandler implements Runnable {
             // Bucle que recibe mensajes del cliente
             while ((mensaje = in.readLine()) != null) {
                 System.out.println("Mensaje recibido de " + mensaje);
-
                 // Envía el mensaje a todos los clientes conectados excepto al remitente
                 for (ClientHandler cliente : clientes) {
                     if (cliente != this) {
-                        cliente.enviarMensaje(mensaje);
-                    }
+                        if(mensaje.startsWith("NOTIF_IMG:")){
+                            String nuevoMensaje = mensaje.substring(10);
+                            cliente.enviarMensaje(nuevoMensaje);
+                        } else {
+                            cliente.enviarMensaje(mensaje);
+                        }                   
+                    } 
                 }
             }
         } catch (IOException e) {
