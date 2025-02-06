@@ -1,5 +1,6 @@
 package com.chatapp.client;
 
+import javax.imageio.ImageIO;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
@@ -18,13 +19,17 @@ import com.vdurmont.emoji.EmojiManager;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.text.SimpleDateFormat;
+import java.util.Base64;
 import java.util.Date;
 
 public class ChatClientGUI extends JFrame {
@@ -66,10 +71,15 @@ public class ChatClientGUI extends JFrame {
         enviarMensaje = new JButton("Enviar");
         botonEmoji = new JButton("😊");
 
+        JButton enviarImagenBtn = new JButton("📷");
+
+        inputPanel.add(enviarImagenBtn, BorderLayout.AFTER_LAST_LINE);
         inputPanel.add(entradaNuevoMensaje, BorderLayout.CENTER);
         inputPanel.add(enviarMensaje, BorderLayout.EAST);
         inputPanel.add(botonEmoji, BorderLayout.WEST);
         add(inputPanel, BorderLayout.SOUTH);
+
+        enviarImagenBtn.addActionListener(e -> enviarImagen());
 
         JPopupMenu emojiPopup = new JPopupMenu();
         for (Emoji emoji : EmojiManager.getAll()) {
@@ -136,17 +146,34 @@ public class ChatClientGUI extends JFrame {
                 try {
                     String mensaje;
                     while ((mensaje = in.readLine()) != null) {
-                        if (mensaje.startsWith("****") && mensaje.endsWith("****")) {
-                            // Si el mensaje tiene los asteriscos, se considera un mensaje de ingreso
-                            agregarMensaje(mensaje, "Ingresa");
-                        } else if (mensaje.startsWith("***") && mensaje.endsWith("***")) {
-                            agregarMensaje(mensaje, "Salida");
-                        } else if (esFormatoValido(mensaje)) {
-                            agregarMensaje(mensaje, "Fecha");
+                        if (mensaje.startsWith("IMG:")) {
+                            System.out.println("Mensaje BASE 64:" + mensaje);
+                            String base64Data = mensaje.substring(4); // Extraer solo los datos Base64
+
+                            byte[] imageBytes = Base64.getDecoder().decode(base64Data);
+                            ByteArrayInputStream bais = new ByteArrayInputStream(imageBytes);
+                            BufferedImage image = ImageIO.read(bais);
+
+                            // Mostrar la imagen en un JLabel
+                            ImageIcon icono = new ImageIcon(image.getScaledInstance(200, 200, Image.SCALE_SMOOTH));
+                            JLabel labelImagen = new JLabel(icono);
+                            JOptionPane.showMessageDialog(null, labelImagen, "Imagen Recibida",
+                                    JOptionPane.PLAIN_MESSAGE);
                         } else {
-                            // Si no tiene los asteriscos, es un mensaje común
-                            agregarMensaje(mensaje, "NoPropio");
+                            if (mensaje.startsWith("****") && mensaje.endsWith("****")) {
+                                // Si el mensaje tiene los asteriscos, se considera un mensaje de ingreso
+                                agregarMensaje(mensaje, "Ingresa");
+                            } else if (mensaje.startsWith("***") && mensaje.endsWith("***")) {
+                                agregarMensaje(mensaje, "Salida");
+                            } else if (esFormatoValido(mensaje)) {
+                                agregarMensaje(mensaje, "Fecha");
+                            } else {
+                                // Si no tiene los asteriscos, es un mensaje común
+                                agregarMensaje(mensaje, "NoPropio");
+                            }
                         }
+
+                       
                         reproducirSonido("src/main/java/com/chatapp/utils/sonidoNotificacion.wav");
                     }
                 } catch (IOException e) {
@@ -182,6 +209,27 @@ public class ChatClientGUI extends JFrame {
             out.println(" " + nombreUsuario + ": " + mensaje + " ");
             entradaNuevoMensaje.setText("");
             enviarHoraFecha();
+        }
+    }
+
+    public void enviarImagen() {
+        JFileChooser fileChooser = new JFileChooser();
+        if (fileChooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
+            File archivoImagen = fileChooser.getSelectedFile();
+            try {
+                // Leer la imagen y convertirla a Base64
+                FileInputStream fis = new FileInputStream(archivoImagen);
+                byte[] bytes = fis.readAllBytes();
+                fis.close();
+
+                String imagenBase64 = Base64.getEncoder().encodeToString(bytes);
+
+                // Enviar la imagen con un prefijo identificador
+                out.println("IMG:" + imagenBase64);
+            } catch (IOException e) {
+                e.printStackTrace();
+                JOptionPane.showMessageDialog(null, "Error al enviar la imagen");
+            }
         }
     }
 
