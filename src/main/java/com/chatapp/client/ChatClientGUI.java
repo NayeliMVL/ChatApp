@@ -34,8 +34,8 @@ import java.util.Date;
 
 public class ChatClientGUI extends JFrame {
     // Cambiar la direccion IP por la de la computadora que funcionara como servidor
-    private static final String SERVIDOR_IP = "172.25.3.68";
-    private static final int SERVIDOR_PUERTO = 12345;
+    private String SERVIDOR_IP;
+    private int SERVIDOR_PUERTO;
 
     private JTextPane areaMensajes;
     private JTextField entradaNuevoMensaje;
@@ -50,7 +50,22 @@ public class ChatClientGUI extends JFrame {
     public Boolean bandera = true;
 
     public ChatClientGUI() {
-        
+
+        // Solicitar dirección IP
+        SERVIDOR_IP = JOptionPane.showInputDialog(this, "Ingresa la dirección IP del servidor:", "localhost");
+        if (SERVIDOR_IP == null || SERVIDOR_IP.trim().isEmpty()) {
+            JOptionPane.showMessageDialog(this, "IP no válida. Se usará localhost por defecto.");
+            SERVIDOR_IP = "localhost";
+        }
+
+        // Solicitar puerto
+        try {
+            String puertoInput = JOptionPane.showInputDialog(this, "Ingresa el puerto del servidor:", "9090");
+            SERVIDOR_PUERTO = Integer.parseInt(puertoInput);
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(this, "Puerto no válido. Se usará 9090 por defecto.");
+            SERVIDOR_PUERTO = 9090;
+        }
 
         nombreUsuario = JOptionPane.showInputDialog(this, "Ingresa tu nombre de usuario: ");
         if (nombreUsuario == null || nombreUsuario.trim().isEmpty()) {
@@ -152,23 +167,21 @@ public class ChatClientGUI extends JFrame {
                             try {
                                 System.out.println("Mensaje BASE 64:" + mensaje);
                                 String base64Data = mensaje.substring(4); // Extraer solo los datos Base64
-    
+
                                 byte[] imageBytes = Base64.getDecoder().decode(base64Data);
                                 ByteArrayInputStream bais = new ByteArrayInputStream(imageBytes);
                                 BufferedImage image = ImageIO.read(bais);
-    
+
                                 // Mostrar la imagen en un JLabel
                                 ImageIcon icono = new ImageIcon(image.getScaledInstance(200, 200, Image.SCALE_SMOOTH));
                                 JLabel labelImagen = new JLabel(icono);
                                 JOptionPane.showMessageDialog(null, labelImagen, "Imagen Recibida",
-                                        JOptionPane.PLAIN_MESSAGE);   
-                                
-                                 
+                                        JOptionPane.PLAIN_MESSAGE);
+
                             } catch (Exception e) {
                                 agregarMensaje("No se pudo enviar tu imagen.", "Error");
                             }
-                            
-                            
+
                         } else {
                             if (mensaje.startsWith("****") && mensaje.endsWith("****")) {
                                 // Si el mensaje tiene los asteriscos, se considera un mensaje de ingreso
@@ -177,7 +190,7 @@ public class ChatClientGUI extends JFrame {
                                 agregarMensaje(mensaje, "Salida");
                             } else if (esFormatoValido(mensaje)) {
                                 agregarMensaje(mensaje, "Fecha");
-                            } else if(mensaje.endsWith("c:")){
+                            } else if (mensaje.endsWith("c:")) {
                                 agregarMensaje(mensaje, "Imagen");
                             } else {
                                 // Si no tiene los asteriscos, es un mensaje común
@@ -185,7 +198,6 @@ public class ChatClientGUI extends JFrame {
                             }
                         }
 
-                       
                         reproducirSonido("src/main/java/com/chatapp/utils/sonidoNotificacion.wav");
                     }
                 } catch (IOException e) {
@@ -238,7 +250,7 @@ public class ChatClientGUI extends JFrame {
 
                 out.println("NOTIF_IMG:" + nombreUsuario + " ha enviado una imagen c:");
                 out.println("IMG:" + imagenBase64);
-                
+
             } catch (IOException e) {
                 e.printStackTrace();
                 JOptionPane.showMessageDialog(null, "Error al enviar la imagen");
@@ -285,7 +297,7 @@ public class ChatClientGUI extends JFrame {
                 StyleConstants.setAlignment(estilo, StyleConstants.ALIGN_RIGHT);
                 break;
             case "Imagen":
-            StyleConstants.setForeground(estilo,Color.WHITE);
+                StyleConstants.setForeground(estilo, Color.WHITE);
                 StyleConstants.setBackground(estilo, Color.ORANGE);
                 StyleConstants.setAlignment(estilo, StyleConstants.ALIGN_CENTER);
                 break;

@@ -6,7 +6,7 @@ import java.util.concurrent.*;
 
 // Clase principal del servidor de chat
 public class ChatServer {
-    private static final int PORT = 12345;
+    private static final int PORT = 9090;
     private static final CopyOnWriteArrayList<ClientHandler> clientes = new CopyOnWriteArrayList<>(); 
 
     public static void main(String[] args) {
